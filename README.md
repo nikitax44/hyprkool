@@ -1,5 +1,5 @@
 # Hyprkool
-An opinionated [Hyprland](https://github.com/hyprwm/Hyprland) plugin that tries to replicate the feel of KDE activities and grid layouts.
+An opinionated tool for [Hyprland](https://github.com/hyprwm/Hyprland) that tries to replicate the feel of KDE activities and grid layouts.
 
 ### Demo Video
 Check out our [demo video](https://youtu.be/tim5r6Yo6TA) to see Hyprkool in action:
@@ -13,19 +13,28 @@ Check out our [demo video](https://youtu.be/tim5r6Yo6TA) to see Hyprkool in acti
 - [harpoon](https://github.com/ThePrimeagen/harpoon) but for hyprland workspaces
 
 # Usage
-Hyprkool consists of two main components: a CLI + daemon written in Rust and a C++ plugin.
-The CLI and daemon collectively provide most of the functionality.
-Additionally, there's an optional C++ plugin that offers a couple of features.
-- Changing workspace animations based on movement direction.
+Hyprkool is a command-line tool (CLI) and an optional daemon written in Rust.
 
 The daemon component of Hyprkool is also optional but required for certain features, including:
 - Desktop switching when the cursor touches screen edges.
 - Remembering the last workspace per activity.
 - Harpoon for workspaces (named-focus)
 
-# Version Compatibility
-The plugin is tested and compatible with the following versions of Hyprland. While the daemon and cli should work with any reasonably new version of Hyprland.
+### ✨ Plugin No Longer Needed! ✨
+As of Hyprland v0.51.1, a fix has been implemented that makes the Hyprkool C++ plugin for directional workspace animations obsolete.
 
+**You can and should uninstall the plugin.** This simplifies your setup and removes an unnecessary component.
+
+**To uninstall:**
+- **Using hyprpm:**
+  ```zsh
+  hyprpm disable hyprkool
+  hyprpm remove hyprkool
+  ```
+- **Using Nix:** Simply remove the `hyprkool-plugin` from your Hyprland plugins list in your Nix configuration.
+- Don't forget to also remove `exec-once = hyprpm reload -n` from your `hyprland.conf`.
+
+# Version Compatibility
 | Hyprland version      | hyprkool version      |
 | ------------- | ------------- |
 | [v0.39.x](https://github.com/hyprwm/Hyprland/releases/tag/v0.39.1) | [v0.5.x](https://github.com/thrombe/hyprkool/releases/tag/0.5.3) |
@@ -39,7 +48,7 @@ The plugin is tested and compatible with the following versions of Hyprland. Whi
 | [v0.49.0](https://github.com/hyprwm/Hyprland/releases/tag/v0.49.0) | [v0.7.6](https://github.com/thrombe/hyprkool/releases/tag/0.7.6) |
 | [v0.50.0](https://github.com/hyprwm/Hyprland/releases/tag/v0.50.0) | [v0.7.7](https://github.com/thrombe/hyprkool/releases/tag/0.7.7) |
 | [v0.50.1](https://github.com/hyprwm/Hyprland/releases/tag/v0.50.1) | [v0.8.0](https://github.com/thrombe/hyprkool/releases/tag/0.8.0), [v0.9.1](https://github.com/thrombe/hyprkool/releases/tag/0.9.1) |
-| [v0.51.0](https://github.com/hyprwm/Hyprland/releases/tag/v0.51.0) | [v0.9.2](https://github.com/thrombe/hyprkool/releases/tag/0.9.1) |
+| [v0.51.0](https://github.com/hyprwm/Hyprland/releases/tag/v0.51.0) | [v0.9.2](https://github.com/thrombe/hyprkool/releases/tag/0.9.2) |
 
 # Installing Cli/Daemon
 <!-- enable when new version of hyprland-rs drops -->
@@ -76,75 +85,6 @@ Else add the following to your nix flake
     packages = [
       inputs.hyprkool.packages."${system}".default
     ];
-
-  # ...
-}
-```
-
-## Installing the Plugin
-### using [hyprpm](https://wiki.hyprland.org/0.39.0/Plugins/Using-Plugins/#hyprpm)
-```zsh
-hyprpm add https://github.com/thrombe/hyprkool
-hyprpm enable hyprkool
-```
-
-### Nix
-It is recommended that you are using Hyprland flake.
-You can install hyprkool plugin just like other [hyprland plugins](https://github.com/hyprwm/hyprland-plugins?tab=readme-ov-file#nix).
-
-#### with hyprland as a flake
-```nix
-{
-  inputs = {
-    # ...
-    hyprland.url = "github:hyprwm/Hyprland";
-    hyprkool = {
-      url = "github:thrombe/hyprkool";
-      inputs.hyprland.follows = "hyprland";
-    };
-  };
-
-  # ...
-
-    # then, you can use the plugins with the Home Manager module
-    {inputs, pkgs, ...}: {
-      wayland.windowManager.hyprland = {
-        enable = true;
-        # ...
-        plugins = [
-          inputs.hyprkool.packages.${pkgs.system}.hyprkool-plugin
-          # ...
-        ];
-      };
-    }
-
-  # ...
-}
-```
-
-#### with hyprland from nixpkgs
-```nix
-{
-  inputs = {
-    # ...
-    hyprkool.url = "github:thrombe/hyprkool";
-  };
-
-  # ...
-
-    # then, you can use the plugins with the Home Manager module
-    {inputs, pkgs, ...}: {
-      wayland.windowManager.hyprland = {
-        enable = true;
-        # ...
-        plugins = [
-          inputs.hyprkool.packages.${pkgs.system}.hyprkool-plugin.override {
-            hyprland = pkgs.hyprland;
-          }
-          # ...
-        ];
-      };
-    }
 
   # ...
 }
@@ -196,9 +136,8 @@ edge_margin = 2
 animations {
   ...
 
-  # i recommend setting workspace animations to fade by default
-  # hyprkool plugin will set the animation to slide with appropriate
-  # direction when you switch between workspaces
+  # i recommend setting the workspace animations to fade by default.
+  # hyprkool will set the animation to slide + <direction> as required.
   animation = workspaces, 1, 2, default, fade
 }
 
@@ -250,9 +189,6 @@ bind = $mainMod SHIFT, 3, exec, hyprkool set-named-focus -n 3
 # - switch workspaces when mouse touches screen edges
 # - named focus
 exec-once = hyprkool daemon -m
-
-# to load the plugin at startup: https://wiki.hyprland.org/0.39.0/Plugins/Using-Plugins/#hyprpm
-exec-once = hyprpm reload -n
 ```
 
 ## Troubleshooting
@@ -298,7 +234,7 @@ this kind of efficient updates.
 Example eww config can be found in [my dotfiles](https://github.com/thrombe/dotfiles-promax/blob/6db936b8db7718cae36e26d57878bc4447bd930e/configma/tools/home/.config/eww/eww.yuck).
 
 # Contributing
-Contributions are welcome to Hyprkool! If you're fixing a bug, adding a feature, or making an improvement, feel free to submit a pull request (PR) to help enhance the plugin.
+Contributions are welcome to Hyprkool! If you're fixing a bug, adding a feature, or making an improvement, feel free to submit a pull request (PR) to help enhance the project.
 
 ### Guidelines:
 - Target the `dev` branch for all contributions. This ensures the `master` branch remains stable while we continue to work on new features and fixes.
