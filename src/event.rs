@@ -364,11 +364,6 @@ pub fn get_socket_path() -> Result<PathBuf> {
     sock_path.push("kool.sock");
     Ok(sock_path)
 }
-pub fn get_plugin_socket_path() -> Result<PathBuf> {
-    let mut sock_path = get_socket_dir()?;
-    sock_path.push("plugin.sock");
-    Ok(sock_path)
-}
 
 #[derive(Debug, Clone, Copy, Serialize, Deserialize)]
 pub enum Animation {
@@ -380,92 +375,33 @@ pub enum Animation {
     Fade = 5,
 }
 
-// TODO: do all this plugin ipc properly
-pub async fn is_plugin_running() -> Result<bool> {
-    _send_plugin_event(Animation::None as _).await
-}
-
 pub async fn set_workspace_anim(anim: Animation) -> Result<()> {
-    match _send_plugin_event(anim as _).await {
-        Ok(true) => {}
-        Ok(false) => {
-            let animations = Animations::get_async().await?;
-            let old_anim = animations
-                .0
-                .into_iter()
-                .find(|anim| anim.name == "workspaces")
-                .expect("hyprctl animations is missing `workspaces`");
-            Keyword::set_async(
-                "animation",
-                format!(
-                    "workspaces, {enable}, {speed}, {curve}, {style}",
-                    enable = old_anim.enabled as u8,
-                    speed = old_anim.speed,
-                    curve = match &old_anim.bezier {
-                        BezierIdent::Specified(curve) => curve,
-                        _ => "default",
-                    },
-                    style = match anim {
-                        Animation::None => "none",
-                        Animation::Left => "slide left",
-                        Animation::Right => "slide right",
-                        Animation::Up => "slide top",
-                        Animation::Down => "slide bottom",
-                        Animation::Fade => "fade",
-                    }
-                ),
-            )
-            .await?;
-        }
-        Err(err) => {
-            println!("could not set workspace animation: {:?}", err);
-            return Err(err);
-        }
-    }
+    let animations = Animations::get_async().await?;
+    let old_anim = animations
+        .0
+        .into_iter()
+        .find(|anim| anim.name == "workspaces")
+        .expect("hyprctl animations is missing `workspaces`");
+    Keyword::set_async(
+        "animation",
+        format!(
+            "workspaces, {enable}, {speed}, {curve}, {style}",
+            enable = old_anim.enabled as u8,
+            speed = old_anim.speed,
+            curve = match &old_anim.bezier {
+                BezierIdent::Specified(curve) => curve,
+                _ => "default",
+            },
+            style = match anim {
+                Animation::None => "none",
+                Animation::Left => "slide left",
+                Animation::Right => "slide right",
+                Animation::Up => "slide top",
+                Animation::Down => "slide bottom",
+                Animation::Fade => "fade",
+            }
+        ),
+    )
+    .await?;
     Ok(())
-}
-
-async fn _send_plugin_event(e: usize) -> Result<bool> {
-    let sock_path = get_plugin_socket_path()?;
-
-    if let Ok(sock) = UnixStream::connect(&sock_path).await {
-        let mut sock = BufWriter::new(sock);
-        sock.write_all(format!("{}", e).as_bytes()).await?;
-        sock.flush().await?;
-        sock.shutdown().await?;
-
-        let sleep = tokio::time::sleep(Duration::from_millis(300));
-        let mut sock = BufReader::new(sock);
-        let mut line = String::new();
-        tokio::select! {
-            res = sock.read_line(&mut line) => {
-                res?;
-                let command = match serde_json::from_str(&line) {
-                    Ok(c) => c,
-                    Err(e) => {
-                        println!("{}", e);
-                        return Ok(false);
-                    }
-                };
-                match command {
-                    Message::IpcOk => {
-                        println!("Ok");
-                        return Ok(true);
-                    }
-                    Message::IpcErr(message) => {
-                        println!("{}", message);
-                        return Ok(false);
-                    }
-                    _ => {
-                        unreachable!();
-                    }
-                }
-            }
-            _ = sleep => {
-                println!("timeout. could not connect to hyprkool plugin");
-            }
-        }
-    }
-
-    Ok(false)
 }
