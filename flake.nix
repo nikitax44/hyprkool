@@ -43,7 +43,7 @@
         cargoLock = {
           lockFile = ./Cargo.lock;
           outputHashes = {
-           "hyprland-0.4.0-beta.2" = "sha256-Vvpb5BzzTjol6UmJjkqymLlARr4gRJaS5k4aONNlcsk=";
+            "hyprland-0.4.0-beta.2" = "sha256-Vvpb5BzzTjol6UmJjkqymLlARr4gRJaS5k4aONNlcsk=";
           };
         };
         src = pkgs.lib.cleanSource ./.;
@@ -56,7 +56,7 @@
       };
       plugin-manifest = (pkgs.lib.importTOML ./hyprpm.toml).repository;
       # - [Override Design Pattern - Nix Pills](https://nixos.org/guides/nix-pills/14-override-design-pattern)
-      hyprkool-plugin = pkgs.lib.makeOverridable pkgs.callPackage ({
+      hyprkool-plugin-dev = pkgs.lib.makeOverridable pkgs.callPackage ({
         pkgs,
         hyprland,
       }:
@@ -97,6 +97,14 @@
 
           inherit meta;
         }) {};
+
+      hyprkool-plugin =
+        builtins.trace ''
+          WARNING: The 'hyprkool-plugin' package is obsolete and should be removed.
+        '' (pkgs.runCommand "hyprkool-plugin-obsolete" {} ''
+          mkdir -p $out
+          echo "This package is a placeholder. See the warning during evaluation." > $out/README.md
+        '');
 
       fhs = pkgs.buildFHSEnv {
         name = "fhs-shell";
@@ -198,7 +206,7 @@
     in {
       packages = {
         default = hyprkool-rs;
-        inherit hyprkool-rs hyprkool-plugin;
+        inherit hyprkool-rs hyprkool-plugin hyprkool-plugin-dev;
       };
 
       devShells.default =
@@ -209,6 +217,7 @@
           inputsFrom = [
             hyprkool-rs
             hyprkool-plugin
+            hyprkool-plugin-dev
           ];
           shellHook = ''
             export PROJECT_ROOT="$(pwd)"
@@ -325,7 +334,7 @@
             })
             ({...}: let
               hyprkool-rs = flakePackage packages "hyprkool-rs";
-              hyprkool-plugin = flakePackage packages "hyprkool-plugin";
+              hyprkool-plugin-dev = flakePackage packages "hyprkool-plugin-dev";
             in {
               environment.systemPackages =
                 (with pkgs; [
@@ -333,12 +342,12 @@
                 ])
                 ++ [
                   hyprkool-rs
-                  hyprkool-plugin
+                  hyprkool-plugin-dev
                   (pkgs.writeShellScriptBin "kool-launch" ''
                     #!/usr/bin/env bash
-                    echo "hyprctl plugin load ${hyprkool-plugin}/lib/libhyprkool.so" > ~/load.sh
+                    echo "hyprctl plugin load ${hyprkool-plugin-dev}/lib/libhyprkool.so" > ~/load.sh
                     chmod +x ~/load.sh
-                    echo "hyprctl plugin unload ${hyprkool-plugin}/lib/libhyprkool.so" > ~/unload.sh
+                    echo "hyprctl plugin unload ${hyprkool-plugin-dev}/lib/libhyprkool.so" > ~/unload.sh
                     chmod +x ~/unload.sh
 
                     Hyprland
